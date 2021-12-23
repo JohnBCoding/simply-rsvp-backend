@@ -81,28 +81,26 @@ def update_rsvp():
         invites = Invited.query.filter_by(event_id=event_id)
         emails = parse_invite_emails(event_emails)
 
-        for email in emails:
-            exists = False
-            for invite in invites:
-                if invite.invited_email == email:
-                    exists = True
-                    break
-                elif invite.invited_email not in emails:
-                    # Delete invite if email was removed from rsvp
-                    db.session.delete(invite)
+        # Delete invites and remove duplicate emails
+        for invite in invites:
+            if invite.invited_email not in emails:
+                db.session.delete(invite)
+            else:
+                emails.remove(invite.invited_email)
 
-            if not exists:
-                invite_code = int(str(event_id) + "1234")
-                print(invite_code)
-                new_invited = Invited(email, invite_code, event_id)
-                db.session.add(new_invited)
+        # Add new invites
+        for email in emails:
+            invite_code = int(str(event_id) + "1234")
+            print(invite_code)
+            new_invited = Invited(email, invite_code, event_id)
+            db.session.add(new_invited)
 
         db.session.commit()
 
         event_data = format_event(event_id, return_id=True)
 
-        if not send_invites(event_id, emails):
-            return "Something went wrong sending out the invites...", 400
+        # if not send_invites(event_id, emails):
+        # return "Something went wrong sending out the invites...", 400
 
         return jsonify(event_data), 200
 
