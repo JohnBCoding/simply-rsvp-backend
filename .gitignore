@@ -1,0 +1,13 @@
+.env
+.flaskenv
+*.pyc
+*.pyo
+env/
+venv/
+.venv/
+env*
+dist/
+.cache/
+.pytest_cache/
+/__pycache__/
+
