@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
 from datetime import datetime
+from random import randint, seed
 
 app = Flask(__name__)
 CORS(app)
@@ -14,7 +15,24 @@ migrate = Migrate(app, db, compare_type=True)
 
 from models import Event, Invited
 
-email_regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+EMAIL_REGEX = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+EMAIL_TEXT = """\
+From: %s
+To: %s
+Subject: %s
+
+%s
+"""
+EMAIL_SUBJECT = "%s has invited you!"
+EMAIL_BODY = """\
+Hello, 
+
+You've been invited to an event by %s.
+
+Please head to (url) and use invite code %s to see the details and accept or decline the invite.
+
+Enjoy the event!
+"""
 
 
 @app.route("/")
@@ -46,8 +64,7 @@ def new_rsvp():
         emails = parse_invite_emails(form_data["event_invites"])
 
         for email in emails:
-            invite_code = int(str(new_event.id) + "1234")
-            print(invite_code)
+            invite_code = generate_invite_code(new_event.id)
             new_invited = Invited(email, invite_code, new_event.id)
             db.session.add(new_invited)
 
@@ -90,8 +107,7 @@ def update_rsvp():
 
         # Add new invites
         for email in emails:
-            invite_code = int(str(event_id) + "1234")
-            print(invite_code)
+            invite_code = generate_invite_code(event_id)
             new_invited = Invited(email, invite_code, event_id)
             db.session.add(new_invited)
 
@@ -99,8 +115,8 @@ def update_rsvp():
 
         event_data = format_event(event_id, return_id=True)
 
-        # if not send_invites(event_id, emails):
-        # return "Something went wrong sending out the invites...", 400
+        if not send_invites(event_id, emails):
+            return "Something went wrong sending out the invites...", 400
 
         return jsonify(event_data), 200
 
@@ -139,6 +155,13 @@ def get_rsvp_by_invite():
     else:
 
         return "No invite matching that email or invite code", 404
+
+
+def generate_invite_code(event_id):
+    seed()
+    code = int(str(event_id) + str(randint(999, 9999)))
+
+    return code
 
 
 def get_event_to_update(event):
@@ -186,12 +209,13 @@ def format_event(event_id, return_id=False):
 
 
 def parse_invite_emails(email_list):
+    """ Removes invalid emails """
     emails = email_list
     if type(email_list) is str:
         emails = [email.strip() for email in email_list.split(",")]
 
     for email in emails:
-        if not (re.fullmatch(email_regex, email)):
+        if not (re.fullmatch(EMAIL_REGEX, email)):
             emails.remove(email)
 
     return emails
@@ -200,26 +224,31 @@ def parse_invite_emails(email_list):
 def send_invites(event_id, email_list):
     """ Sends out invite emails to emails in the list. Returns true if succesful."""
 
-    subject = "You've been invited!"
-    body = "Hello, this is a test."
-
     try:
         server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
         server.ehlo()
         server.login(app.config["GMAIL_USER"], app.config["GMAIL_PASS"])
         for email in email_list:
-            email_text = """\
-From: %s
-To: %s
-Subject: %s
+            # populate email subject and body
+            event = Event.query.filter_by(id=event_id).first()
+            invite = Invited.query.filter_by(
+                event_id=event_id, invited_email=email
+            ).first()
+            creator_full = event.creator_fn + " " + event.creator_ln
 
-%s
-    """ % (
+            subject = EMAIL_SUBJECT % (creator_full)
+            body = EMAIL_BODY % (
+                creator_full,
+                invite.invite_code,
+            )
+            email_text = EMAIL_TEXT % (
                 "Simply RSVP",
                 email,
                 subject,
                 body,
             )
+
+            # Send
             server.sendmail(app.config["GMAIL_USER"], email, email_text)
 
         server.close()
