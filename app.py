@@ -87,6 +87,10 @@ def update_rsvp():
                 if invite.invited_email == email:
                     exists = True
                     break
+                elif invite.invited_email not in emails:
+                    # Delete invite if email was removed from rsvp
+                    db.session.delete(invite)
+
             if not exists:
                 invite_code = int(str(event_id) + "1234")
                 print(invite_code)
