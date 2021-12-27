@@ -6,6 +6,7 @@ from flask_cors import CORS
 from datetime import datetime
 from random import randint, seed
 
+# Init app
 app = Flask(__name__)
 CORS(app)
 app.config.from_object(os.environ["APP_SETTINGS"])
@@ -15,6 +16,7 @@ migrate = Migrate(app, db, compare_type=True)
 
 from models import Event, Invited
 
+# Email constants
 EMAIL_REGEX = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
 EMAIL_TEXT = """\
 From: %s
@@ -43,7 +45,7 @@ def index():
 
 @app.route("/new_rsvp", methods=["GET", "POST"])
 def new_rsvp():
-
+    """ Creates a new event and invites, returns event data if creation was successful """
     if request.method == "POST":
         form_data = request.json["formData"]
 
@@ -81,6 +83,7 @@ def new_rsvp():
 
 @app.route("/update_rsvp", methods=["GET", "POST"])
 def update_rsvp():
+    """ Updates an existing event and invites, returns event data if successful """
     if request.method == "POST":
         form_data = request.json["formData"]
         event_id = form_data["event_id"]
@@ -126,6 +129,7 @@ def update_rsvp():
 
 @app.route("/get_rsvp_event", methods=["POST"])
 def get_rsvp_by_event():
+    """ Returns event data if requested event exists """
     form_data = request.json["formData"]
     event = Event.query.filter_by(
         creator_email=form_data["creator_email"],
@@ -141,7 +145,7 @@ def get_rsvp_by_event():
 
 @app.route("/get_rsvp_invite", methods=["POST"])
 def get_rsvp_by_invite():
-
+    """ Returns event data if requested invite exists """
     form_data = request.json["formData"]
     invite = Invited.query.filter_by(
         invited_email=form_data["invited_email"],
@@ -158,6 +162,7 @@ def get_rsvp_by_invite():
 
 
 def generate_invite_code(event_id):
+    """ Returns a 6 digit invite code """
     seed()
     code = int(str(event_id) + str(randint(999, 9999)))
 
@@ -189,8 +194,7 @@ def get_event_to_update(event):
 
 
 def format_event(event_id, return_id=False):
-    """ Takes an event id and returns a dictionary of the event details """
-
+    """ Takes an event id and returns a dictionary of the formatted event details """
     event_query = Event.query.filter_by(id=event_id).first()
 
     formatted_name = event_query.creator_fn + " " + event_query.creator_ln
@@ -204,6 +208,12 @@ def format_event(event_id, return_id=False):
         "time": formatted_time,
         "desc": event_query.event_desc,
     }
+
+    # Get emails of invited guests
+    invited_email_list = []
+    for invite in event_query.invited:
+        invited_email_list.append(invite.invited_email)
+    event_data["invited_emails"] = ", ".join(invited_email_list)
 
     return event_data
 
@@ -222,8 +232,7 @@ def parse_invite_emails(email_list):
 
 
 def send_invites(event_id, email_list):
-    """ Sends out invite emails to emails in the list. Returns true if succesful."""
-
+    """ Sends out invite emails to emails in the list. Returns true if succesful """
     try:
         server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
         server.ehlo()
