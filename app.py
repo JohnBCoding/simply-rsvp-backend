@@ -75,7 +75,7 @@ def new_rsvp():
         db.session.commit()
 
         # Send the created event back as a response
-        event_data = format_event(new_event.id, return_id=True)
+        event_data = format_event(new_event.id)
         return jsonify(event_data), 200
 
     return "Bad request", 400
@@ -116,7 +116,7 @@ def update_rsvp():
 
         db.session.commit()
 
-        event_data = format_event(event_id, return_id=True)
+        event_data = format_event(event_id)
 
         if not send_invites(event_id, emails):
             return "Something went wrong sending out the invites...", 400
@@ -161,6 +161,24 @@ def get_rsvp_by_invite():
         return "No invite matching that email or invite code", 404
 
 
+@app.route("/update_invite_status", methods=["POST"])
+def update_invite_status():
+    """ Handles accepting or declining invites """
+    if request.method == "POST":
+        form_data = request.json["invite"]
+
+        invite = Invited.query.filter_by(
+            event_id=form_data["event_id"], invited_email=form_data["invited_email"]
+        ).first()
+        invite.invite_status = form_data["status"]
+        db.session.commit()
+
+        return jsonify("Invite response status has been updated"), 200
+
+    else:
+        return "Bad request", 400
+
+
 def generate_invite_code(event_id):
     """ Returns a 6 digit invite code """
     seed()
@@ -193,7 +211,7 @@ def get_event_to_update(event):
     return event_data
 
 
-def format_event(event_id, return_id=False):
+def format_event(event_id):
     """ Takes an event id and returns a dictionary of the formatted event details """
     event_query = Event.query.filter_by(id=event_id).first()
 
@@ -201,7 +219,7 @@ def format_event(event_id, return_id=False):
     formatted_date = event_query.event_date.strftime("%A, %B %d")
     formatted_time = event_query.event_time.strftime("%#I:%M %p")
     event_data = {
-        "id": event_id if return_id else None,
+        "id": event_id,
         "creator": formatted_name,
         "location": event_query.event_location.title(),
         "date": formatted_date,

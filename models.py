@@ -40,8 +40,10 @@ class Invited(db.Model):
     invited_email = db.Column(db.String())
     invite_code = db.Column(db.Integer)
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
+    invite_status = db.Column(db.String())
 
     def __init__(self, invited_email, invite_code, event_id):
         self.invited_email = invited_email
         self.invite_code = invite_code
         self.event_id = event_id
+        self.invite_status = "none"
