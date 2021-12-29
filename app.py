@@ -31,7 +31,7 @@ Hello,
 
 You've been invited to an event by %s.
 
-Please head to (url) and use invite code %s to see the details and accept or decline the invite.
+Please head to https://simply-rsvp.herokuapp.com/view and use invite code %s to see the details and accept or decline the invite.
 
 Enjoy the event!
 """
