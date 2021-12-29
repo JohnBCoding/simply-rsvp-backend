@@ -193,8 +193,8 @@ def get_event_to_update(event):
     formatted_time = event.event_time.strftime("%H:%M:%S")
     event_data = {
         "id": event.id,
-        "creator_fn": event.creator_fn,
-        "creator_ln": event.creator_ln,
+        "creator_fn": event.creator_fn.title(),
+        "creator_ln": event.creator_ln.title(),
         "creator_email": event.creator_email,
         "location": event.event_location.title(),
         "date": formatted_date,
